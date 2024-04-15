@@ -446,7 +446,7 @@ const voicemeeter = {
     },
 
     /**
-     * @deprecated Use setRawParameters 
+     * @deprecated Use setRawParameters
      */
     _sendRawParameterScript(script) {
         this.setRawParameters(script);
