@@ -29,6 +29,7 @@ const voicemeeter = {
     MacroButtonState,
     MacroButtonTrigger,
     MacroButtonColor,
+    _libvoicemeeter: null,
 
     // reflecting the dll initialization state
     isInitialised: false,
@@ -46,7 +47,11 @@ const voicemeeter = {
     async init() {
         const dll = koffi.load(await getDLLPath());
 
-        libvoicemeeter = {
+        this._libvoicemeeter = libvoicemeeter = {
+            // expose dll and koffi in case the user want to use it directly
+            _dll: dll,
+            _koffi: koffi,
+
             // Login
             VBVMR_Login: dll.func("long __stdcall VBVMR_Login(void)"),
             VBVMR_Logout: dll.func("long __stdcall VBVMR_Logout(void)"),
