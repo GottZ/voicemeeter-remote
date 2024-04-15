@@ -30,8 +30,13 @@ const voicemeeter = {
     MacroButtonTrigger,
     MacroButtonColor,
 
+    // reflecting the dll initialization state
     isInitialised: false,
+    // reclecting a connection to the vm api
     isConnected: false,
+    // reflecting a previous connection to the vm api for auto re-connecting. resets on logout.
+    hadConnection: false,
+
     outputDevices: [],
     inputDevices: [],
     type: 0,
@@ -39,7 +44,6 @@ const voicemeeter = {
     voicemeeterConfig: null,
 
     async init() {
-
         const dll = koffi.load(await getDLLPath());
 
         libvoicemeeter = {
@@ -56,27 +60,27 @@ const voicemeeter = {
             VBVMR_IsParametersDirty: dll.func("long __stdcall VBVMR_IsParametersDirty(void)"),
             VBVMR_GetParameterFloat: dll.func("long __stdcall VBVMR_GetParameterFloat(char * szParamName, _Out_ float * pValue)"),
             VBVMR_GetParameterStringA: dll.func("long __stdcall VBVMR_GetParameterStringA(char * szParamName, _Out_ void * szString)"),
-            VBVMR_GetParameterStringW: dll.func("long __stdcall VBVMR_GetParameterStringW(char * szParamName, _Out_ unsigned short * wszString)"), // Not tested
+            VBVMR_GetParameterStringW: dll.func("long __stdcall VBVMR_GetParameterStringW(char * szParamName, _Out_ unsigned short * wszString)"),
 
             // Get levels
             VBVMR_GetLevel: dll.func("long __stdcall VBVMR_GetLevel(long nType, long nuChannel, _Out_ float * pValue)"),
-            VBVMR_GetMidiMessage: dll.func("long __stdcall VBVMR_GetMidiMessage(_Out_ unsigned char *pMIDIBuffer, long nbByteMax)"), // Not tested
-            VBVMR_SendMidiMessage: dll.func("long __stdcall VBVMR_SendMidiMessage(_Out_ unsigned char *pMIDIBuffer, long nbByte)"), // Not tested
+            VBVMR_GetMidiMessage: dll.func("long __stdcall VBVMR_GetMidiMessage(_Out_ unsigned char *pMIDIBuffer, long nbByteMax)"),
+            VBVMR_SendMidiMessage: dll.func("long __stdcall VBVMR_SendMidiMessage(_Out_ unsigned char *pMIDIBuffer, long nbByte)"),
 
             // Set parameters
             VBVMR_SetParameterFloat: dll.func("long __stdcall VBVMR_SetParameterFloat(char * szParamName, float Value)"),
-            VBVMR_SetParameterStringA: dll.func("long __stdcall VBVMR_SetParameterStringA(char * szParamName, char * szString)"), // Not tested
-            VBVMR_SetParameterStringW: dll.func("long __stdcall VBVMR_SetParameterStringW(char * szParamName, unsigned short * wszString)"), // Not tested
+            VBVMR_SetParameterStringA: dll.func("long __stdcall VBVMR_SetParameterStringA(char * szParamName, char * szString)"),
+            VBVMR_SetParameterStringW: dll.func("long __stdcall VBVMR_SetParameterStringW(char * szParamName, unsigned short * wszString)"),
             VBVMR_SetParameters: dll.func("long __stdcall VBVMR_SetParameters(char * szParamScript)"),
-            VBVMR_SetParametersW: dll.func("long __stdcall VBVMR_SetParametersW(unsigned short * szParamScript)"), // Not tested
+            VBVMR_SetParametersW: dll.func("long __stdcall VBVMR_SetParametersW(unsigned short * szParamScript)"),
 
             // Devices enumerator
             VBVMR_Output_GetDeviceNumber: dll.func("long __stdcall VBVMR_Output_GetDeviceNumber(void)"),
             VBVMR_Output_GetDeviceDescA: dll.func("long __stdcall VBVMR_Output_GetDeviceDescA(long zindex, _Out_ long * nType, _Out_ void * szDeviceName, _Out_ void * szHardwareId)"),
-            VBVMR_Output_GetDeviceDescW: dll.func("long __stdcall VBVMR_Output_GetDeviceDescW(long zindex, _Out_ long * nType, _Out_ unsigned short * wszDeviceName, _Out_ unsigned short * wszHardwareId)"), // Not tested
+            VBVMR_Output_GetDeviceDescW: dll.func("long __stdcall VBVMR_Output_GetDeviceDescW(long zindex, _Out_ long * nType, _Out_ unsigned short * wszDeviceName, _Out_ unsigned short * wszHardwareId)"),
             VBVMR_Input_GetDeviceNumber: dll.func("long __stdcall VBVMR_Input_GetDeviceNumber(void)"),
             VBVMR_Input_GetDeviceDescA: dll.func("long __stdcall VBVMR_Input_GetDeviceDescA(long zindex, _Out_ long * nType, _Out_ void * szDeviceName, _Out_ void * szHardwareId)"),
-            VBVMR_Input_GetDeviceDescW: dll.func("long __stdcall VBVMR_Input_GetDeviceDescW(long zindex, _Out_ long * nType, _Out_ unsigned short * wszDeviceName, _Out_ unsigned short * wszHardwareId)"), // Not tested
+            VBVMR_Input_GetDeviceDescW: dll.func("long __stdcall VBVMR_Input_GetDeviceDescW(long zindex, _Out_ long * nType, _Out_ unsigned short * wszDeviceName, _Out_ unsigned short * wszHardwareId)"),
 
             // TODO Implement callback
 
@@ -89,13 +93,57 @@ const voicemeeter = {
         this.isInitialised = true;
     },
 
+    checkConnection() {
+        if (this.hadConnection && !this.isConnected) {
+            // throwing this would be annoying af
+            //throw "Connection lost";
+
+            // reset connection state
+            try {
+                this.login();
+            } catch (e) {
+                // throw connection lost in case the login throws "Login failed"
+                if (e === "Login failed")
+                    throw "Login not recoverable";
+                throw e;
+            }
+        }
+
+        if (!this.isInitialised)
+            throw "Not initialised. await voicemeeter.init() first.";
+
+        if (!this.isConnected)
+            throw "Not connected. voicemeeter.login() first.";
+    },
+
     runVoicemeeter(runVoicemeeterType) {
         if (libvoicemeeter.VBVMR_RunVoicemeeter(runVoicemeeterType) !== 0)
             throw "Running failed";
     },
 
     isParametersDirty() {
-        return libvoicemeeter.VBVMR_IsParametersDirty();
+        this.checkConnection();
+
+        const retval = libvoicemeeter.VBVMR_IsParametersDirty();
+        switch (retval) {
+            case 0: {
+                return false;
+            }
+            case 1: {
+                return true;
+            }
+            case -2: {
+                // api got disconnected
+                this.isConnected = false;
+                // re-run this function to re-connect. will throw if not possible.
+                return voicemeeter.isParametersDirty();
+            }
+
+            default: {
+                console.error("unknown return value", retval);
+                throw "Running failed";
+            }
+        }
     },
 
     /**
@@ -106,58 +154,143 @@ const voicemeeter = {
     },
 
     getRawParameterFloat(parameter) {
-
-        if (!this.isConnected)
-            throw "Not connected";
+        this.checkConnection();
 
         const value = [0];
-        if (libvoicemeeter.VBVMR_GetParameterFloat(parameter, value) !== 0)
-            throw "Running failed";
+        const retval = libvoicemeeter.VBVMR_GetParameterFloat(parameter, value);
+        switch (retval) {
+            case 0: {
+                return value[0];
+            }
+            case -1: {
+                // invalid type. likely a string then.
+                return voicemeeter.getRawParameterString(parameter);
+            }
+            case -2: {
+                // api got disconnected
+                this.isConnected = false;
+                // re-run this function to re-connect. will throw if not possible.
+                return voicemeeter.getRawParameterFloat(parameter);
+            }
 
-        return value[0];
+            default: {
+                console.error("unknown return value", retval);
+                throw "Running failed";
+            }
+        }
     },
 
     getRawParameterString(parameter) {
+        this.checkConnection();
 
-        if (!this.isConnected)
-            throw "Not connected";
+        const buffer = Buffer.allocUnsafe(4096);
+        const retval = libvoicemeeter.VBVMR_GetParameterStringW(parameter, buffer);
+        
+        switch (retval) {
+            case 0: {
+                return koffi.decode(buffer, "char16_t", 2048);
+            }
+            case -1: {
+                // invalid type. likely write-only then.
+                return undefined;
+            }
+            case -2: {
+                // api got disconnected
+                this.isConnected = false;
+                // re-run this function to re-connect. will throw if not possible.
+                return voicemeeter.getRawParameterString(parameter);
+            }
 
-        const value = Buffer.alloc(512);
-        if (libvoicemeeter.VBVMR_GetParameterStringA(parameter, value) !== 0)
-            throw "Running failed";
-
-        return value.toString().replace(/\x00+$/, "");
+            default: {
+                console.error("unknown return value", retval);
+                throw "Running failed";
+            }
+        }
     },
 
     setRawParameterFloat(parameter, value) {
+        this.checkConnection();
 
-        if (!this.isConnected)
-            throw "Not connected";
+        const retval = libvoicemeeter.VBVMR_SetParameterFloat(parameter, value);
+        switch (retval) {
+            case 0: {
+                return;
+            }
+            case -1: {
+                // invalid type.
+                throw "Invalid type";
+            }
+            case -2: {
+                // api got disconnected
+                this.isConnected = false;
+                // re-run this function to re-connect. will throw if not possible.
+                return voicemeeter.setRawParameterFloat(parameter, value);
+            }
 
-        if (libvoicemeeter.VBVMR_SetParameterFloat(parameter, value) !== 0)
-            throw "Running failed";
+            default: {
+                console.error("unknown return value", retval);
+                throw "Running failed";
+            }
+        }
     },
 
     setRawParameterString(parameter, value) {
+        this.checkConnection();
 
-        if (!this.isConnected)
-            throw "Not connected";
+        const buffer = Buffer.allocUnsafe(4096);
+        koffi.encode(buffer, "char16_t", value, Math.min(value.length +1, 2048));
+        const retval = libvoicemeeter.VBVMR_SetParameterStringW(parameter, buffer);
+        switch (retval) {
+            case 0: {
+                return;
+            }
+            case -1: {
+                // invalid type.
+                throw "Invalid type";
+            }
+            case -2: {
+                // api got disconnected
+                this.isConnected = false;
+                // re-run this function to re-connect. will throw if not possible.
+                return voicemeeter.setRawParameterString(parameter, value);
+            }
 
-        if (libvoicemeeter.VBVMR_SetParameterStringA(parameter, value) !== 0)
-            throw "Running failed";
+            default: {
+                console.error("unknown return value", retval);
+                throw "Running failed";
+            }
+        }
     },
 
-    setRawParameters(parameters) {
+    setRawParameters(value) {
+        this.checkConnection();
 
-        if (!this.isConnected)
-            throw "Not connected";
+        const buffer = Buffer.allocUnsafe(4096);
+        koffi.encode(buffer, "char16_t", value, Math.min(value.length +1, 2048));
+        const retval = libvoicemeeter.VBVMR_SetParametersW(buffer);
+        switch (retval) {
+            case 0: {
+                return;
+            }
+            case -1: {
+                // invalid type.
+                throw "Invalid type";
+            }
+            case -2: {
+                // api got disconnected
+                this.isConnected = false;
+                // re-run this function to re-connect. will throw if not possible.
+                return voicemeeter.setRawParameters(value);
+            }
 
-        if (libvoicemeeter.VBVMR_SetParameters(parameters) !== 0)
-            throw "Running failed";
+            default: {
+                console.error("unknown return value", retval);
+                throw "Running failed";
+            }
+        }
     },
 
     login() {
-
         if (!this.isInitialised)
             throw "Await the initialization before login";
 
@@ -171,17 +304,20 @@ const voicemeeter = {
         this.version = this._getVoicemeeterVersion();
         this.voicemeeterConfig = VoicemeeterDefaultConfig[this.type];
         this.isConnected = true;
+        this.hadConnection = true;
     },
 
     logout() {
-
-        if (!this.isConnected)
-            throw "Not connected";
-
-        if (libvoicemeeter.VBVMR_Logout() !== 0)
-            throw "Logout failed";
+        // silently logout in case we are not connected.
+        if (!this.isConnected) {
+            this.hadConnection = false;
+            return;
+        }
 
         this.isConnected = false;
+        this.hadConnection = false;
+
+        libvoicemeeter.VBVMR_Logout();
     },
 
     getOutputDeviceNumber() {
@@ -193,46 +329,33 @@ const voicemeeter = {
     },
 
     updateDeviceList() {
-
-        if (!this.isConnected)
-            throw "Not connected";
+        this.checkConnection();
 
         this.outputDevices = [];
         this.inputDevices = [];
 
-        const outputDeviceNumber = this.getOutputDeviceNumber();
-        for (let i = 0; i < outputDeviceNumber; i++) {
+        ["Output", "Input"].forEach((type) => {
+            const container = this[`${type.toLowerCase()}Devices`];
+            const deviceNumber = this[`get${type}DeviceNumber`]();
 
-            const type = [0];
-            const deviceName = Buffer.alloc(256);
-            const hardwareId = Buffer.alloc(256);
+            for (let i = 0; i < deviceNumber; i++) {
+                const deviceType = [0];
+                const deviceNameBuffer = Buffer.allocUnsafe(4096);
+                const hardwareIdBuffer = Buffer.allocUnsafe(4096);
 
-            if (libvoicemeeter.VBVMR_Output_GetDeviceDescA(i, type, deviceName, hardwareId) !== 0)
-                throw "Running failed";
+                if (libvoicemeeter[`VBVMR_${type}_GetDeviceDescW`](i, deviceType, deviceNameBuffer, hardwareIdBuffer) !== 0)
+                    throw `reading ${type} devices failed`;
 
-            this.outputDevices.push({
-                type: type[0],
-                name: deviceName.toString().replace(/\x00+$/, ""),
-                hardwareId: hardwareId.toString().replace(/\x00+$/, "")
-            });
-        }
+                const name = koffi.decode(deviceNameBuffer, "char16_t", 2048);
+                const hardwareId = koffi.decode(hardwareIdBuffer, "char16_t", 2048);
 
-        const inputDeviceNumber = this.getInputDeviceNumber();
-        for (let i = 0; i < inputDeviceNumber; i++) {
-
-            const type = [0];
-            const deviceName = Buffer.alloc(256);
-            const hardwareId = Buffer.alloc(256);
-
-            if (libvoicemeeter.VBVMR_Input_GetDeviceDescA(i, type, deviceName, hardwareId) !== 0)
-                throw "Running failed";
-
-            this.inputDevices.push({
-                type: type[0],
-                name: deviceName.toString().replace(/\x00+$/, ""),
-                hardwareId: hardwareId.toString().replace(/\x00+$/, "")
-            });
-        }
+                container.push({
+                    type: deviceType[0],
+                    name,
+                    hardwareId,
+                });
+            }
+        });
     },
 
     showVoicemeeter() {
@@ -303,9 +426,7 @@ const voicemeeter = {
     },
 
     getLevel(type, channel) {
-
-        if (!this.isConnected)
-            throw "Not connected";
+        this.checkConnection();
 
         const value = [0];
         if (libvoicemeeter.VBVMR_GetLevel(type, channel, value) !== 0)
@@ -315,7 +436,6 @@ const voicemeeter = {
     },
 
     _getVoicemeeterType() {
-
         const voicemeeterType = [0];
         if (libvoicemeeter.VBVMR_GetVoicemeeterType(voicemeeterType) !== 0)
             throw "Running failed";
@@ -333,7 +453,6 @@ const voicemeeter = {
     },
 
     _getVoicemeeterVersion() {
-
         const voicemeeterVersion = [0];
         if (libvoicemeeter.VBVMR_GetVoicemeeterVersion(voicemeeterVersion) !== 0)
             throw "Running failed";
@@ -347,9 +466,7 @@ const voicemeeter = {
     },
 
     _getParameterFloat(type, name, id) {
-
-        if (!this.isConnected)
-            throw "Not connected";
+        this.checkConnection();
 
         if (!this.voicemeeterConfig)
             throw "Configuration error";
@@ -368,9 +485,7 @@ const voicemeeter = {
     },
 
     _getParameterString(type, name, id) {
-
-        if (!this.isConnected)
-            throw "Not connected";
+        this.checkConnection();
 
         if (!this.voicemeeterConfig)
             throw "Configuration error";
@@ -389,9 +504,7 @@ const voicemeeter = {
     },
 
     _setParameterFloat(type, name, id, value) {
-
-        if (!this.isConnected)
-            throw "Not connected";
+        this.checkConnection();
 
         if (!this.voicemeeterConfig)
             throw "Configuration error";
@@ -410,9 +523,7 @@ const voicemeeter = {
     },
 
     _setParameterString(type, name, id, value) {
-
-        if (!this.isConnected)
-            throw "Not connected";
+        this.checkConnection();
 
         if (!this.voicemeeterConfig)
             throw "Configuration error";
@@ -431,9 +542,7 @@ const voicemeeter = {
     },
 
     _setParameters(parameters) {
-
-        if (!this.isConnected)
-            throw "Not connected";
+        this.checkConnection();
 
         if (!this.voicemeeterConfig)
             throw "Configuration error";
@@ -463,7 +572,7 @@ const voicemeeter = {
      */
     _sendRawParameterScript(script) {
         this.setRawParameters(script);
-    }
+    },
 }
 
 const busesParametersNames = ["Mono", "Mute", "Gain"];
