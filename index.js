@@ -11,6 +11,7 @@ const getDLLPath = () => {
     });
     return new Promise((resolve) => {
         regKey.values((error, items) => {
+            if (error) throw new Error("could not read voicemeeter dll path from registry");
             const uninstallerPath = items.find((item) => item.name === "UninstallString").value;
             resolve(join(dirname(uninstallerPath), "VoicemeeterRemote64.dll"));
         });
