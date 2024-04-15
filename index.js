@@ -573,37 +573,138 @@ const voicemeeter = {
     _sendRawParameterScript(script) {
         this.setRawParameters(script);
     },
+    
+    api: new Proxy({}, {
+        get(target, prop) {
+            // resolve false promises
+            if (prop === "then") return undefined;
+
+            // if the property ends with " as string", return it as a string
+            // example: console.log(api["vban.instream[0].name as string"]);
+            if (prop.endsWith(" as string")) {
+                return voicemeeter.getRawParameterString(prop.slice(0, -10));
+            }
+
+            // otherwise return it as float
+            // example console.log(api["Bus[0].Gain"]);
+            return voicemeeter.getRawParameterFloat(prop);
+        },
+
+        set(target, prop, value) {
+            // convert boolean to numbers
+            if (typeof value === "boolean") value = value ? 1 : 0;
+            // send the value as float if it is a number, otherwise as string
+            const action = typeof value === "number" ? "setRawParameterFloat" : "setRawParameterString";
+            // examples
+            // api["Bus[0].Gain"] = 0.5;
+            // api["Bus[0].Device.wdm"] = "Totally Amazing Soundbar 2000";
+            // api["Bus[0].FadeTo"] = "(-30, 200)";
+            return voicemeeter[action](prop, value);
+        },
+    }),
+
 }
 
-const busesParametersNames = ["Mono", "Mute", "Gain"];
-const stripParametersNames = ["Mono", "Mute", "Solo", "MC", "Gain", "Pan_x", "Pan_y", "Color_x", "Color_y", "fx_x", "fx_y", "Audibility", "Gate", "Comp", "A1", "A2", "A3", "A4", "A5", "B1", "B2", "B3"];
+const busParameterMappings = {
+    "Delay": "Option.delay[$1]",
+    "DeviceName": "Bus[$1].device.name",
+    "DeviceSr": "Bus[$1].device.sr",
+    "DeviceWdm": "Bus[$1].device.wdm",
+    "DeviceMme": "Bus[$1].device.mme",
+    "DeviceAsio": "Bus[$1].device.asio",
+};
 
-busesParametersNames.forEach((name) => {
+[
+    "Mono",
+    "Mute",
+    "Gain",
+    "ReturnReverb",
+    "ReturnDelay",
+    "ReturnFx1",
+    "ReturnFx2",
+    "Sel",
+    "Monitor",
+    "Label",
+    "FadeTo",
+    "FadeBy",
+].forEach(name => busParameterMappings[name] = "Bus[$1]." + name);
 
-    voicemeeter[`setBus${name}`] = (busNumber, value) => {
-        if (typeof value === "boolean")
-            voicemeeter._setParameterFloat(InterfaceType.bus, name, busNumber, value ? 1 : 0);
-        else
-            voicemeeter._setParameterFloat(InterfaceType.bus, name, busNumber, value);
-    }
+const stripParameterMappings = {
+    "CompGain": "Strip[$1].Comp.Gain",
+    "CompRatio": "Strip[$1].Comp.Ratio",
+    "CompThreshold": "Strip[$1].Comp.Threshold",
+    "CompAttack": "Strip[$1].Comp.Attack",
+    "CompRelease": "Strip[$1].Comp.Release",
+    "CompKnee": "Strip[$1].Comp.Knee",
+    "CompGainOut": "Strip[$1].Comp.GainOut",
+    "CompMakeUp": "Strip[$1].Comp.MakeUp",
+    "GateThreshold": "Strip[$1].Gate.Threshold",
+    "GateDamping": "Strip[$1].Gate.Damping",
+    "GateBPSidechain": "Strip[$1].Gate.BPSidechain",
+    "GateAttack": "Strip[$1].Gate.Attack",
+    "GateHold": "Strip[$1].Gate.Hold",
+    "GateRelease": "Strip[$1].Gate.Release",
+    "DenoiserThreshold": "Strip[$1].Denoiser.Threshold",
+    "PitchOn": "Strip[$1].Pitch.On",
+    "PitchDryWet": "Strip[$1].Pitch.DryWet",
+    "PitchValue": "Strip[$1].Pitch.PitchValue",
+    "PitchLoFormat": "Strip[$1].Pitch.LoFormat",
+    "PitchMedFormat": "Strip[$1].Pitch.MedFormat",
+    "PitchHiFormat": "Strip[$1].Pitch.HiFormat",
+    "PitchRecallPreset": "Strip[$1].Pitch.RecallPreset",
+};
 
-    voicemeeter[`getBus${name}`] = (busNumber) => {
-        return voicemeeter._getParameterFloat(InterfaceType.bus, name, busNumber);
-    }
-});
+[
+    "Mono",
+    "Mute",
+    "Solo",
+    "MC",
+    "Karaoke",
+    "Gain",
+    "Pan_x",
+    "Pan_y",
+    "Color_x",
+    "Color_y",
+    "fx_x",
+    "fx_y",
+    "Audibility",
+    "Gate",
+    "Comp",
+    "A1",
+    "A2",
+    "A3",
+    "A4",
+    "A5",
+    "B1",
+    "B2",
+    "B3",
+    "Denoiser",
+    "PostReverb",
+    "PostDelay",
+    "PostFx1",
+    "PostFx2",
+    "FadeTo",
+    "FadeBy",
+    "Label",
+    "Limit",
+    "AppGain",
+    "AppMute"
+].forEach(name => stripParameterMappings[name] = "Strip[$1]." + name);
 
-stripParametersNames.forEach((name) => {
+["Bus", "Strip"].forEach(type => {
+    const isBus = type === "Bus";
 
-    voicemeeter[`setStrip${name}`] = (stripNumber, value) => {
-        if (typeof value === "boolean")
-            voicemeeter._setParameterFloat(InterfaceType.strip, name, stripNumber, value ? 1 : 0);
-        else
-            voicemeeter._setParameterFloat(InterfaceType.strip, name, stripNumber, value);
-    }
+    Object.entries(isBus ? busParameterMappings : stripParameterMappings).forEach(([name, mapping]) => {
+        voicemeeter[`set${type}${name}`] = (number, value) => {
+            if (typeof value === "boolean") value = value ? 1 : 0;
+            const action = typeof value === "number" ? "setRawParameterFloat" : "setRawParameterString";
+            voicemeeter[action](mapping.replace("$1", number), value);
+        }
 
-    voicemeeter[`getStrip${name}`] = (stripNumber) => {
-        return voicemeeter._getParameterFloat(InterfaceType.strip, name, stripNumber);
-    }
+        voicemeeter[`get${type}${name}`] = (number) => {
+            return voicemeeter.getRawParameterFloat(mapping.replace("$1", number));
+        }
+    });
 });
 
 module.exports = voicemeeter;
