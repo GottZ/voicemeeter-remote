@@ -21,6 +21,14 @@ const getDLLPath = () => {
 let libvoicemeeter;
 
 const voicemeeter = {
+    VoicemeeterType,
+    RunVoicemeeterType,
+    InterfaceType,
+    LevelType,
+    DeviceType,
+    MacroButtonState,
+    MacroButtonTrigger,
+    MacroButtonColor,
 
     isInitialised: false,
     isConnected: false,
@@ -490,11 +498,3 @@ stripParametersNames.forEach((name) => {
 });
 
 module.exports = voicemeeter;
-module.exports.VoicemeeterType = VoicemeeterType;
-module.exports.RunVoicemeeterType = RunVoicemeeterType;
-module.exports.InterfaceType = InterfaceType;
-module.exports.LevelType = LevelType;
-module.exports.DeviceType = DeviceType;
-module.exports.MacroButtonState = MacroButtonState;
-module.exports.MacroButtonTrigger = MacroButtonTrigger;
-module.exports.MacroButtonColor = MacroButtonColor;
