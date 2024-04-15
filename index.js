@@ -230,6 +230,10 @@ const voicemeeter = {
     showVoicemeeter() {
         this.setRawParameters("Command.Show=1;");
     },
+    
+    hideVoicemeeter() {
+        this.setRawParameters("Command.Show=0;");
+    },
 
     shutdownVoicemeeter() {
         this.setRawParameters("Command.Shutdown=1;");
