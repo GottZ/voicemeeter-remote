@@ -1,4 +1,4 @@
-const VoicemeeterDefaultConfig = { // key is VoicemeeterType
+export const VoicemeeterDefaultConfig = { // key is VoicemeeterType
     0: {},
     1: {
         strips: [{
@@ -105,14 +105,14 @@ const VoicemeeterDefaultConfig = { // key is VoicemeeterType
     }
 }
 
-const VoicemeeterType = {
+export const VoicemeeterType = {
     unknown: 0,
     voicemeeter: 1,
     voicemeeterBanana: 2,
     voicemeeterPotato: 3
 }
 
-const RunVoicemeeterType = {
+export const RunVoicemeeterType = {
     VoicemeeterStandard: 1,
     VoicemeeterBanana: 2,
     VoicemeeterPotato: 3,
@@ -131,36 +131,36 @@ const RunVoicemeeterType = {
     VBVoicemeeterVAIO_ControlPanel: 23
 }
 
-const InterfaceType = {
+export const InterfaceType = {
     strip: 0,
     bus: 1
 }
 
-const LevelType = {
+export const LevelType = {
     preFaderInput: 0,
     postFaderInput: 1,
     postMuteInput: 2,
     output: 3
 }
 
-const DeviceType = {
+export const DeviceType = {
     mme: 1,
     wdm: 3,
     ks: 4,
     asio: 5
 }
 
-const MacroButtonState = {
+export const MacroButtonState = {
     disabled: 0,
     enabled: 1
 }
 
-const MacroButtonTrigger = {
+export const MacroButtonTrigger = {
     disabled: 0,
     enabled: 1
 }
 
-const MacroButtonColor = {
+export const MacroButtonColor = {
     default: 0,
     brown: 1,
     yellow: 2,
@@ -171,5 +171,3 @@ const MacroButtonColor = {
     pink: 7,
     red: 8
 }
-
-module.exports = { VoicemeeterDefaultConfig, VoicemeeterType, RunVoicemeeterType, InterfaceType, LevelType, DeviceType, MacroButtonState, MacroButtonTrigger, MacroButtonColor };

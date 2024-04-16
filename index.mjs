@@ -1,8 +1,9 @@
-const { dirname, join } = require("path");
-const Registry = require("winreg");
-const koffi = require("koffi");
+import { dirname, join } from "node:path";
+import Registry from "winreg";
+import koffi from "koffi";
 
-const { VoicemeeterDefaultConfig, VoicemeeterType, RunVoicemeeterType, InterfaceType, LevelType, DeviceType, MacroButtonState, MacroButtonTrigger, MacroButtonColor } = require("./voicemeeterEnums");
+import { VoicemeeterDefaultConfig, VoicemeeterType, RunVoicemeeterType, InterfaceType, LevelType, DeviceType, MacroButtonState, MacroButtonTrigger, MacroButtonColor } from "./voicemeeterEnums.mjs";
+export * from "./voicemeeterEnums.mjs";
 
 const getDLLPath = () => {
     const regKey = new Registry({
@@ -21,14 +22,23 @@ const getDLLPath = () => {
 let libvoicemeeter;
 
 const voicemeeter = {
+    // @deprecated Use import { VoicemeeterType } from "voicemeeter-remote";
     VoicemeeterType,
+    // @deprecated Use import { RunVoicemeeterType } from "voicemeeter-remote";
     RunVoicemeeterType,
+    // @deprecated Use import { InterfaceType } from "voicemeeter-remote";
     InterfaceType,
+    // @deprecated Use import { LevelType } from "voicemeeter-remote";
     LevelType,
+    // @deprecated Use import { DeviceType } from "voicemeeter-remote";
     DeviceType,
+    // @deprecated Use import { MacroButtonState } from "voicemeeter-remote";
     MacroButtonState,
+    // @deprecated Use import { MacroButtonTrigger } from "voicemeeter-remote";
     MacroButtonTrigger,
+    // @deprecated Use import { MacroButtonColor } from "voicemeeter-remote";
     MacroButtonColor,
+
     _libvoicemeeter: null,
 
     // reflecting the dll initialization state
@@ -716,4 +726,4 @@ const stripParameterMappings = {
     });
 });
 
-module.exports = voicemeeter;
+export default voicemeeter;

@@ -1,9 +1,17 @@
 {
   "name": "voicemeeter-remote",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "A Node.js voicemeeter remote wrapper",
-  "main": "index.js",
+  "main": "index.mjs",
+  "types": "index.d.ts",
+  "type": "module",
   "author": "Mickael MAYEUR",
+  "contributors": [
+    "Mickael MAYEUR",
+    "Raraph84",
+    "CodeBeast357",
+    "Jan-Stefan Janetzky <github@gottz.de>"
+  ],
   "license": "MIT",
   "dependencies": {
     "koffi": "^2.7.0",
@@ -13,8 +21,12 @@
     "type": "git",
     "url": "https://github.com/Mikatux/voicemeeter-remote.git"
   },
+  "bugs": {
+    "url": "https://github.com/Mikatux/voicemeeter-remote/issues"
+  },
   "keywords": [
     "voicemeeter",
-    "remote"
+    "remote",
+    "api"
   ]
 }
