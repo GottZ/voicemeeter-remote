@@ -177,6 +177,10 @@ const voicemeeter = {
                 // re-run this function to re-connect. will throw if not possible.
                 return voicemeeter.getRawParameterFloat(parameter);
             }
+            case -3: {
+                // out of range exception
+                throw "Parameter out of range";
+            }
 
             default: {
                 console.error("unknown return value", retval);
